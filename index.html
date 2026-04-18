@@ -82,11 +82,9 @@
         }
     });
 
-    // --- XALKA CILADDA 1899 ---
     function parseTime(t) {
         if (!t) return 0;
         let timeStr = String(t);
-        // Haddii uu yahay format-ka Google Sheets ee dheer (1899-12-30T04:52:44.000Z)
         if (timeStr.includes("T")) {
             timeStr = timeStr.split("T")[1];
         }
@@ -122,15 +120,38 @@
             const status = document.getElementById('status');
             const submitBtn = document.getElementById('submitBtn');
 
-            let timeOpen = true;
+            // --- AFARTA WAQTI & FARIIMAHA ---
+            let timeStatusMsg = "";
+            let canSubmit = true;
+
             if (String(SETTINGS.time_limit_on).toLowerCase() === "true" && shift !== "") {
-                let start = shift.includes("subax") ? parseTime(SETTINGS.morn_start) : parseTime(SETTINGS.aft_start);
-                let end = shift.includes("subax") ? parseTime(SETTINGS.morn_end) : parseTime(SETTINGS.aft_end);
-                if (currentTime < start || currentTime > end) timeOpen = false;
+                let start, end;
+                
+                if (shift === "subax imaansho") {
+                    start = parseTime(SETTINGS.morn_start);
+                    end = parseTime(SETTINGS.morn_end);
+                } else if (shift === "subax bixitaan") {
+                    start = parseTime(SETTINGS.morn_out_start);
+                    end = parseTime(SETTINGS.morn_out_end);
+                } else if (shift === "galab imaansho") {
+                    start = parseTime(SETTINGS.aft_start);
+                    end = parseTime(SETTINGS.aft_end);
+                } else if (shift === "galab bixitaan") {
+                    start = parseTime(SETTINGS.aft_out_start);
+                    end = parseTime(SETTINGS.aft_out_end);
+                }
+
+                if (currentTime < start) {
+                    timeStatusMsg = "❌ Lama gaarin waqtigii " + shift + ".";
+                    canSubmit = false;
+                } else if (currentTime > end) {
+                    timeStatusMsg = "❌ Waa la soo dhaafay waqtigii " + shift + ".";
+                    canSubmit = false;
+                }
             }
 
-            if (!timeOpen) {
-                status.innerText = "❌ Waqtigan ma furna Notepad-ku.";
+            if (!canSubmit) {
+                status.innerText = timeStatusMsg;
                 status.style.color = "orange";
                 submitBtn.disabled = true;
                 submitBtn.innerText = "WAA XIRAN YAHAY";
