@@ -82,10 +82,28 @@
         }
     });
 
+    // --- XALKA CILADDA 1899 ---
     function parseTime(t) {
         if (!t) return 0;
-        const [h, m] = t.split(':').map(Number);
+        let timeStr = String(t);
+        // Haddii uu yahay format-ka Google Sheets ee dheer (1899-12-30T04:52:44.000Z)
+        if (timeStr.includes("T")) {
+            timeStr = timeStr.split("T")[1];
+        }
+        const parts = timeStr.split(':');
+        const h = parseInt(parts[0]) || 0;
+        const m = parseInt(parts[1]) || 0;
         return h * 60 + m;
+    }
+
+    function formatTimeDisplay(t) {
+        if (!t) return "00:00";
+        let timeStr = String(t);
+        if (timeStr.includes("T")) {
+            let parts = timeStr.split("T")[1].split(":");
+            return parts[0] + ":" + parts[1];
+        }
+        return timeStr;
     }
 
     function startGPSWatch() {
@@ -104,7 +122,6 @@
             const status = document.getElementById('status');
             const submitBtn = document.getElementById('submitBtn');
 
-            // --- QAYBTA XIRITAANKA WAQTIGA (Logic) ---
             let timeOpen = true;
             if (String(SETTINGS.time_limit_on).toLowerCase() === "true" && shift !== "") {
                 let start = shift.includes("subax") ? parseTime(SETTINGS.morn_start) : parseTime(SETTINGS.aft_start);
@@ -140,14 +157,18 @@
         if (!TEACHER_DB[name] || String(TEACHER_DB[name].pass) !== String(pass)) return alert("Password-ku waa khaldan yahay!");
 
         const now = new Date();
-        const currentTimeStr = now.getHours() + ":" + (now.getMinutes()<10?'0':'') + now.getMinutes();
-        const currentTime = parseTime(currentTimeStr);
+        const hour = now.getHours();
+        const min = (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+        const currentTimeStr = hour + ":" + min;
+        const currentTime = hour * 60 + now.getMinutes();
         const maanta = now.toLocaleDateString('en-GB');
 
-        let limitStr = shift.includes("subax") ? SETTINGS.morn_on_time : SETTINGS.aft_on_time;
-        let earlyLimitStr = shift.includes("subax") ? SETTINGS.morn_early : SETTINGS.aft_early;
-        let limit = parseTime(limitStr);
-        let earlyLimit = parseTime(earlyLimitStr);
+        let limitRaw = shift.includes("subax") ? SETTINGS.morn_on_time : SETTINGS.aft_on_time;
+        let earlyLimitRaw = shift.includes("subax") ? SETTINGS.morn_early : SETTINGS.aft_early;
+        
+        let limit = parseTime(limitRaw);
+        let earlyLimit = parseTime(earlyLimitRaw);
+        let limitStr = formatTimeDisplay(limitRaw);
 
         let finalMsg = SETTINGS.msg_success;
         if (shift.includes("imaansho")) {
