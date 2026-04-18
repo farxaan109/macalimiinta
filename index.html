@@ -31,7 +31,7 @@
         <option value="">-- Dooro Xaaladda --</option>
         <option value="subax imaansho">Subax Imaansho</option>
         <option value="subax bixitaan">Subax Bixitaan</option>
-        <option value="galab Imaansho">Galab Imaansho</option>
+        <option value="galab imaansho">Galab Imaansho</option>
         <option value="galab bixitaan">Galab Bixitaan</option>
     </select>
 
@@ -45,7 +45,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-    // ✅ FIREBASE CONFIG (Sidii aad u qoratay)
     const firebaseConfig = {
         apiKey: "AIzaSyBaYvZ8Wpx9-hNX1fyWKCxbA2ysvQCHYm4",
         authDomain: "alxikma-attendance-bfac1.firebaseapp.com",
@@ -62,17 +61,15 @@
     let TEACHER_DB = {}; 
     let SETTINGS = {};
 
-    // 1. SOO JIIDASHADA SETTINGS-KA (Sheet3)
     db.ref('settings').on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
             SETTINGS = data;
             document.getElementById('displaySchoolName').innerText = SETTINGS.school_name || "AL XIKMA SCHOOL";
-            startGPSWatch(); // Markay Settings-ku yimaadaan ayuu GPS-ku bilaabanayaa
+            startGPSWatch();
         }
     });
 
-    // 2. SOO JIIDASHADA MAGACYADA (Sheet2)
     db.ref('staff_list').on('value', (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -85,9 +82,18 @@
         }
     });
 
-    // Qaybta GPS-ka (Hadda waxay xogta ka aqrinaysaa Sheet3)
+    function parseTime(t) {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    }
+
     function startGPSWatch() {
         navigator.geolocation.watchPosition((pos) => {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            const shift = document.getElementById('shiftSelect').value.toLowerCase();
+            
             const R = 6371; 
             const lat1 = pos.coords.latitude, lon1 = pos.coords.longitude;
             const dLat = (SETTINGS.lat - lat1) * Math.PI / 180;
@@ -96,22 +102,33 @@
             const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
             const status = document.getElementById('status');
-            if (dist <= SETTINGS.radius) {
+            const submitBtn = document.getElementById('submitBtn');
+
+            // --- QAYBTA XIRITAANKA WAQTIGA (Logic) ---
+            let timeOpen = true;
+            if (String(SETTINGS.time_limit_on).toLowerCase() === "true" && shift !== "") {
+                let start = shift.includes("subax") ? parseTime(SETTINGS.morn_start) : parseTime(SETTINGS.aft_start);
+                let end = shift.includes("subax") ? parseTime(SETTINGS.morn_end) : parseTime(SETTINGS.aft_end);
+                if (currentTime < start || currentTime > end) timeOpen = false;
+            }
+
+            if (!timeOpen) {
+                status.innerText = "❌ Waqtigan ma furna Notepad-ku.";
+                status.style.color = "orange";
+                submitBtn.disabled = true;
+                submitBtn.innerText = "WAA XIRAN YAHAY";
+            } else if (dist <= SETTINGS.radius) {
                 status.innerText = "✅ Goobtaadu waa sax.";
                 status.style.color = "green";
-                document.getElementById('submitBtn').disabled = false;
-                document.getElementById('submitBtn').innerText = "XAADIRI";
+                submitBtn.disabled = false;
+                submitBtn.innerText = "XAADIRI";
             } else {
                 status.innerText = (SETTINGS.msg_far || "Ma joogtid iskuulka") + " (" + (dist*1000).toFixed(0) + "m).";
                 status.style.color = "red";
-                document.getElementById('submitBtn').disabled = true;
+                submitBtn.disabled = true;
+                submitBtn.innerText = "HUBINTA GOOBTA...";
             }
         }, null, { enableHighAccuracy: true });
-    }
-
-    function parseTime(t) {
-        const [h, m] = t.split(':').map(Number);
-        return h * 60 + m;
     }
 
     document.getElementById('submitBtn').addEventListener('click', () => {
@@ -120,14 +137,13 @@
         const pass = document.getElementById('passInput').value;
 
         if (!name || !shift || !pass) return alert("Fadlan buuxi dhamaan khaanadaha!");
-        if (!TEACHER_DB[name] || TEACHER_DB[name].pass !== pass) return alert("Password-ku waa khaldan yahay!");
+        if (!TEACHER_DB[name] || String(TEACHER_DB[name].pass) !== String(pass)) return alert("Password-ku waa khaldan yahay!");
 
         const now = new Date();
         const currentTimeStr = now.getHours() + ":" + (now.getMinutes()<10?'0':'') + now.getMinutes();
         const currentTime = parseTime(currentTimeStr);
         const maanta = now.toLocaleDateString('en-GB');
 
-        // Hubinta Daahista iyo Fariimaha (Sheet3 Logic)
         let limitStr = shift.includes("subax") ? SETTINGS.morn_on_time : SETTINGS.aft_on_time;
         let earlyLimitStr = shift.includes("subax") ? SETTINGS.morn_early : SETTINGS.aft_early;
         let limit = parseTime(limitStr);
@@ -145,7 +161,6 @@
             }
         }
 
-        // Hubinta Haddii uu hore u is-xaadiriyey
         db.ref('attendance').orderByChild('name').equalTo(name).once('value', (snapshot) => {
             let horay_u_jiray = false;
             snapshot.forEach((child) => {
