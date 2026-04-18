@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AL XIKMA SCHOOL - Attendance</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f4f7f6; margin: 0; }
+        .container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+        h2 { color: #2c3e50; border-bottom: 2px solid #28a745; display: inline-block; padding-bottom: 5px; }
+        select, input { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        .submit-btn { background-color: #28a745; color: white; padding: 15px; border: none; border-radius: 10px; cursor: pointer; width: 100%; font-size: 17px; font-weight: bold; margin-top: 10px; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #status { margin-top: 15px; font-weight: bold; font-size: 14px; }
+        .success-msg { color: #2e7d32; }
+        .success-msg h1 { font-size: 40px; margin-bottom: 10px; }
+        .success-msg p { font-size: 18px; color: #333; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainContainer">
+    <h2>AL XIKMA SCHOOL</h2>
+    <p>Xaadirinta Macalimiinta</p>
+
+    <select id="nameSelect">
+        <option value="">-- Sugaya Magacyada... --</option>
+    </select>
+
+    <select id="shiftSelect">
+        <option value="">-- Dooro Xaaladda --</option>
+        <option value="subax imaansho">Subax Imaansho</option>
+        <option value="subax bixitaan">Subax Bixitaan</option>
+        <option value="galab Imaansho">Galab Imaansho</option>
+        <option value="galab bixitaan">Galab Bixitaan</option>
+    </select>
+
+    <input type="password" id="passInput" placeholder="Gali Password-kaaga">
+
+    <button id="submitBtn" class="submit-btn" disabled>Hubinta Goobta...</button>
+    <div id="status">Sugaya GPS-ka...</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+    // ✅ FIREBASE CONFIG (Sida aad u qoratay)
+    const firebaseConfig = {
+        apiKey: "AIzaSyBaYvZ8Wpx9-hNX1fyWKCxbA2ysvQCHYm4",
+        authDomain: "alxikma-attendance-bfac1.firebaseapp.com",
+        databaseURL: "https://alxikma-attendance-bfac1-default-rtdb.firebaseio.com",
+        projectId: "alxikma-attendance-bfac1",
+        storageBucket: "alxikma-attendance-bfac1.appspot.com",
+        messagingSenderId: "782229241085",
+        appId: "1:782229241085:web:0245c6cae8da2080fd1294"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    let TEACHER_DB = {}; // Halkan waxaa ku dhici doona magacyada laga soo jiido Sheets-ka
+
+    // ✅ QAYBTA CUSUB: SOO JIIDASHADA MAGACYADA (Staff List)
+    db.ref('staff_list').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            TEACHER_DB = data;
+            const nameSelect = document.getElementById('nameSelect');
+            nameSelect.innerHTML = '<option value="">-- Dooro Magacaaga --</option>';
+            Object.keys(data).sort().forEach(name => {
+                nameSelect.innerHTML += `<option value="${name}">${name}</option>`;
+            });
+            console.log("Magacyada waa la soo jiiday.");
+        }
+    });
+    
+    const SCHOOL_LAT = 8.400651; 
+    const SCHOOL_LON = 48.491168; 
+    const ALLOWED_RADIUS = 0.20; 
+    const status = document.getElementById('status');
+    const mainContainer = document.getElementById('mainContainer');
+
+    // Hubinta GPS
+    navigator.geolocation.watchPosition((pos) => {
+        const R = 6371; 
+        const lat1 = pos.coords.latitude, lon1 = pos.coords.longitude;
+        const dLat = (SCHOOL_LAT - lat1) * Math.PI / 180;
+        const dLon = (SCHOOL_LON - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(SCHOOL_LAT * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        if (dist <= ALLOWED_RADIUS) {
+            status.innerText = "✅ Goobtaadu waa sax.";
+            status.style.color = "green";
+            document.getElementById('submitBtn').disabled = false;
+        } else {
+            status.innerText = "❌ Ma joogtid iskuulka ee khayaanada jooji (" + (dist*1000).toFixed(0) + "m ayaa ka fog tahay).";
+            status.style.color = "red";
+            document.getElementById('submitBtn').disabled = true;
+        }
+    }, null, { enableHighAccuracy: true });
+
+    document.getElementById('submitBtn').addEventListener('click', () => {
+        const name = document.getElementById('nameSelect').value;
+        const shift = document.getElementById('shiftSelect').value;
+        const pass = document.getElementById('passInput').value;
+
+        if (!name || !shift || !pass) return alert("Fadlan buuxi dhamaan khaanadaha!");
+        
+        // Hubinta Password-ka laga soo jiiday Firebase
+        if (!TEACHER_DB[name] || TEACHER_DB[name].pass !== pass) {
+            return alert("Password-ku waa khaldan yahay!");
+        }
+
+        document.getElementById('submitBtn').disabled = true;
+        status.innerText = "Hubinta xogta hore... Fadlan sug.";
+
+        const maanta = new Date().toLocaleDateString('en-GB'); 
+
+        db.ref('attendance').orderByChild('name').equalTo(name).once('value', (snapshot) => {
+            let horay_u_jiray = false;
+            
+            snapshot.forEach((childSnapshot) => {
+                const record = childSnapshot.val();
+                const recordDate = new Date(record.time).toLocaleDateString('en-GB');
+                if (record.shift === shift && recordDate === maanta) {
+                    horay_u_jiray = true;
+                }
+            });
+
+            if (horay_u_jiray) {
+                alert("❌ Ustaad " + name + ", hore ayaad isugu xaadirisay " + shift + " maanta (" + maanta + "). Hal mar kaliya ayaa laguu ogol yahay!");
+                status.innerText = "Laba jeer is-xaadirin lama ogola.";
+                document.getElementById('submitBtn').disabled = false;
+            } else {
+                status.innerText = "Diiwaangelinaya... Fadlan sug.";
+                db.ref('attendance').push({
+                    name: name,
+                    email: TEACHER_DB[name].email || "",
+                    shift: shift,
+                    time: firebase.database.ServerValue.TIMESTAMP
+                }).then(() => {
+                    mainContainer.innerHTML = `
+                        <div class="success-msg">
+                            <h1>✅</h1>
+                            <p><strong>Mahadsanid Ustaad ${name}</strong></p>
+                            <p>Waad ku guulaysatay inaad is-xaadiriso.</p>
+                            <p style="color: #666; font-size: 14px;">Fariin xaqiijin ah ka fiirso email-kaaga daqiiqad ka dia.</p>
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                            <p style="font-size: 12px; color: red;"> waa mahadsantahay shaqadaada qabso marka shaqo wacan.</p>
+                        </div>
+                    `;
+                    
+                    setTimeout(() => {
+                        location.reload(); 
+                    }, 5000); 
+
+                }).catch((err) => {
+                    alert("Cilad: " + err.message);
+                    document.getElementById('submitBtn').disabled = false;
+                });
+            }
+        });
+    });
+</script>
+</body>
+</html>
