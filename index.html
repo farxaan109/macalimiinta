@@ -156,12 +156,12 @@
                 submitBtn.disabled = true;
                 submitBtn.innerText = "WAA XIRAN YAHAY";
             } else if (dist <= SETTINGS.radius) {
-                status.innerText = "✅ Goobtaadu waa sax.";
+                status.innerText = "✅ Hadda iskuulka waad joogtaa .";
                 status.style.color = "green";
                 submitBtn.disabled = false;
                 submitBtn.innerText = "XAADIRI";
             } else {
-                status.innerText = (SETTINGS.msg_far || "Ma joogtid iskuulka") + " (" + (dist*1000).toFixed(0) + "m).";
+                status.innerText = (SETTINGS.msg_far || "Ma joogtid iskuulka fadlan marka hore iskuulka tag") + " (" + (dist*1000).toFixed(0) + "m).";
                 status.style.color = "red";
                 submitBtn.disabled = true;
                 submitBtn.innerText = "HUBINTA GOOBTA...";
@@ -212,7 +212,7 @@
             });
 
             if (horay_u_jiray) {
-                alert("❌ Hore ayaad isugu xaadirisay " + shift + " maanta!");
+                alert("❌ Hore ayaad isugu xaadirisay " + shift + " maanta hal mar ayaa laguu ogol yahay maalintii!");
             } else {
                 db.ref('attendance').push({
                     name: name,
